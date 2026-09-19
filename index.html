@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sổ Điểm Danh - Trường THCS Hùng Vương</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Be Vietnam Pro', system-ui, sans-serif; }
+  #app { min-height: 100vh; }
+  #boot-error { display:none; font-family: monospace; white-space: pre-wrap; padding: 20px; color: #C4453D; background:#FCEAE9; margin:16px; border-radius:8px; }
+  ::-webkit-scrollbar { height: 8px; width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #c7d0db; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="boot-error"></div>
+<div id="app"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    var box = document.getElementById("boot-error");
+    box.style.display = "block";
+    box.textContent = "Đã xảy ra lỗi khi chạy app:\n" + (e.error && e.error.stack ? e.error.stack : e.message);
+  });
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+/* ---------------------------------------------------------------
+   Icon (tự vẽ SVG, không phụ thuộc thư viện ngoài)
+--------------------------------------------------------------- */
+function IconBase({ children, size = 16, className = "", style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+      {children}
+    </svg>
+  );
+}
+const Check = (p) => <IconBase {...p}><polyline points="20 6 9 17 4 12" /></IconBase>;
+const X = (p) => <IconBase {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></IconBase>;
+const Plus = (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></IconBase>;
+const ChevronDown = (p) => <IconBase {...p}><polyline points="6 9 12 15 18 9" /></IconBase>;
+const Trash2 = (p) => <IconBase {...p}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></IconBase>;
+const Pencil = (p) => <IconBase {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></IconBase>;
+const UploadCloud = (p) => <IconBase {...p}><path d="M16 16l-4-4-4 4" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.4 17.6A5 5 0 0 0 18 8h-1.3A7 7 0 1 0 4 15.3" /></IconBase>;
+const DownloadCloud = (p) => <IconBase {...p}><path d="M8 17l4 4 4-4" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.4 14.6A5 5 0 0 0 18 5h-1.3A7 7 0 1 0 4 12.3" /></IconBase>;
+const Users = (p) => <IconBase {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></IconBase>;
+const AlertTriangle = (p) => <IconBase {...p}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></IconBase>;
+const BookOpen = (p) => <IconBase {...p}><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" /><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" /></IconBase>;
+const Trophy = (p) => <IconBase {...p}><path d="M8 21h8" /><line x1="12" y1="17" x2="12" y2="21" /><path d="M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M17 4h3a3 3 0 0 1-3 5" /><path d="M7 4H4a3 3 0 0 0 3 5" /></IconBase>;
+const Settings = (p) => <IconBase {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1 1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V27" /><circle cx="12" cy="12" r="8" /></IconBase>;
+const Cloud = (p) => <IconBase {...p}><path d="M17.5 19H9a7 7 0 1 1 6.7-9h.8a4.5 4.5 0 1 1 1 8.9z" /></IconBase>;
+const CloudOff = (p) => <IconBase {...p}><path d="M22.6 15A4.5 4.5 0 0 0 18 8.8V8a5.5 5.5 0 0 0-9.6-3.4" /><path d="M5.5 8.7A5.5 5.5 0 0 0 7 19h11.5a4.5 4.5 0 0 0 1.3-.2" /><line x1="2" y1="2" x2="22" y2="22" /></IconBase>;
+const RefreshCw = (p) => <IconBase {...p}><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><polyline points="21 3 21 8 16 8" /><polyline points="3 21 3 16 8 16" /></IconBase>;
+const CalendarCheck2 = (p) => <IconBase {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="16" y1="3" x2="16" y2="7" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="3" y1="11" x2="21" y2="11" /><polyline points="8.5 15.5 10.5 17.5 15 13" /></IconBase>;
+const LayoutDashboard = (p) => <IconBase {...p}><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></IconBase>;
+const Sparkles = (p) => <IconBase {...p}><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5Z" /><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7Z" /></IconBase>;
+const Shuffle = (p) => <IconBase {...p}><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></IconBase>;
+const LogIn = (p) => <IconBase {...p}><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></IconBase>;
+const KeyRound = (p) => <IconBase {...p}><circle cx="8" cy="15" r="4" /><path d="M10.85 12.15 19 4l3 3-2 2 2 2-3 3-2-2-2 2" /></IconBase>;
+
+/* ---------------------------------------------------------------
+   Biểu đồ cột (tự vẽ SVG, không phụ thuộc recharts)
+--------------------------------------------------------------- */
+function SimpleBarChart({ data, series, height = 260, colorForBar }) {
+  const chartH = height - 34;
+  const barGroupW = 64;
+  const width = Math.max(320, data.length * barGroupW);
+  const max = Math.max(1, ...data.flatMap((d) => series.map((s) => Number(d[s.key]) || 0)));
+  const barW = Math.min(26, (barGroupW - 12) / series.length);
+  return (
+    <div>
+      <div style={{ overflowX: "auto" }}>
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+          {[0, 0.25, 0.5, 0.75, 1].map((f, i) => (
+            <line key={i} x1="0" x2={width} y1={chartH * (1 - f)} y2={chartH * (1 - f)} stroke={TOKENS.border} strokeWidth="1" />
+          ))}
+          {data.map((d, gi) => (
+            <g key={gi} transform={`translate(${gi * barGroupW + 6},0)`}>
+              {series.map((s, si) => {
+                const val = Number(d[s.key]) || 0;
+                const h = (val / max) * chartH;
+                const color = colorForBar ? colorForBar(d, s) : s.color;
+                return <rect key={si} x={si * (barW + 3)} y={chartH - h} width={barW} height={Math.max(0, h)} rx="3" fill={color} />;
+              })}
+              <text x={(barGroupW - 12) / 2} y={height - 12} textAnchor="middle" fontSize="11" fill={TOKENS.textSecondary}>{d.name}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+      {series.length > 1 && (
+        <div className="flex flex-wrap gap-3 mt-2">
+          {series.map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-xs" style={{ color: TOKENS.textSecondary }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: s.color, display: "inline-block" }} />{s.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/* ---------------------------------------------------------------
+   Hằng số & tiện ích
+--------------------------------------------------------------- */
+
+const SCHOOL_NAME = "Trường THCS Hùng Vương";
+const GRADE7 = Array.from({ length: 7 }, (_, i) => `7A${i + 1}`);
+const GRADE8 = Array.from({ length: 8 }, (_, i) => `8A${i + 1}`);
+const ALL_CLASSES = [...GRADE7, ...GRADE8];
+
+const SUBJECTS = ["Toán", "Ngữ văn", "Tiếng Anh", "KHTN", "Lịch sử & Địa lý", "GDCD", "Tin học", "Công nghệ", "Thể dục"];
+const SUBJECT_COLORS = ["#1E3A5F", "#D99A34", "#3D6FB4", "#3F8F5F", "#C4453D", "#8452A3", "#2E9AA6", "#B5651D", "#6B7280"];
+
+const TOKENS = {
+  navy: "#1E3A5F", navyDark: "#152a45", navySoft: "#28496f", gold: "#D99A34", goldSoft: "#F3DDB2",
+  bg: "#F2F4F8", surface: "#FFFFFF", border: "#E1E6ED", textPrimary: "#16222E", textSecondary: "#5B6672",
+  present: "#3F8F5F", presentBg: "#E9F6EE", excused: "#3D6FB4", excusedBg: "#EAF1FB",
+  absent: "#C4453D", absentBg: "#FCEAE9", late: "#C98A22", lateBg: "#FBF1DE",
+};
+
+const STATUS_META = {
+  present: { label: "Có mặt", color: TOKENS.present, bg: TOKENS.presentBg },
+  excused: { label: "Vắng có phép", color: TOKENS.excused, bg: TOKENS.excusedBg },
+  absent: { label: "Vắng không phép", color: TOKENS.absent, bg: TOKENS.absentBg },
+  late: { label: "Đi muộn", color: TOKENS.late, bg: TOKENS.lateBg },
+};
+
+const DRIVE_FILE_NAME = "diem_danh_thcs_data.json";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const LS_KEYS = {
+  data: "dd-thcs-data",
+  clientId: "dd-thcs-google-client-id",
+  fileId: "dd-thcs-drive-file-id",
+  apiKey: "dd-thcs-anthropic-key",
+};
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function academicYear() {
+  const d = new Date(); const y = d.getFullYear();
+  return d.getMonth() >= 7 ? `${y} - ${y + 1}` : `${y - 1} - ${y}`;
+}
+function uid() {
+  try { return crypto.randomUUID(); }
+  catch { return `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+}
+function formatTime(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+}
+function round1(n) { return Math.round(n * 10) / 10; }
+
+function summarizeStudent(cls, studentId, attendance, grades) {
+  let present = 0, excused = 0, absent = 0, late = 0, totalDays = 0;
+  Object.entries(attendance).forEach(([key, rec]) => {
+    if (!key.endsWith(`_${cls}`)) return;
+    totalDays++;
+    const st = rec[studentId] || "present";
+    if (st === "present") present++;
+    else if (st === "excused") excused++;
+    else if (st === "absent") absent++;
+    else if (st === "late") late++;
+  });
+  const clsGrades = grades[cls] || { assessments: [], scores: {} };
+  const bySubject = {};
+  const allValid = [];
+  clsGrades.assessments.forEach((a) => {
+    const raw = clsGrades.scores[a.id]?.[studentId];
+    if (raw === undefined || raw === "" || isNaN(Number(raw))) return;
+    const val = Number(raw);
+    allValid.push(val);
+    bySubject[a.subject] = bySubject[a.subject] || { sum: 0, count: 0 };
+    bySubject[a.subject].sum += val;
+    bySubject[a.subject].count++;
+  });
+  const subjectAverages = Object.fromEntries(
+    Object.entries(bySubject).map(([subj, v]) => [subj, round1(v.sum / v.count)])
+  );
+  const overallAvg = allValid.length ? round1(allValid.reduce((a, b) => a + b, 0) / allValid.length) : null;
+  return { present, excused, absent, late, totalDays, subjectAverages, overallAvg };
+}
+
+/* ---------------- localStorage (thay cho window.storage) ---------------- */
+function lsGet(key) {
+  try { const v = localStorage.getItem(key); return v === null ? null : v; }
+  catch { return null; }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, value); return true; }
+  catch { return false; }
+}
+
+/* ---------------- Anthropic API (cho AI Nhận xét, cần API key riêng) ---------------- */
+async function callClaudeDirect(promptText, apiKey) {
+  if (!apiKey) throw new Error("NO_API_KEY");
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-5",
+      max_tokens: 1200,
+      messages: [{ role: "user", content: promptText }],
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`API lỗi ${res.status}: ${t.slice(0, 200)}`);
+  }
+  return res.json();
+}
+function extractText(data) {
+  if (!data || !Array.isArray(data.content)) return "";
+  return data.content.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+}
+
+/* ---------------- Google Drive (OAuth thật qua Google Identity Services) ---------------- */
+let tokenClient = null;
+let cachedAccessToken = null;
+let cachedTokenExpiry = 0;
+
+function ensureTokenClient(clientId, onToken) {
+  if (!window.google || !window.google.accounts) return null;
+  if (!tokenClient || tokenClient.__clientId !== clientId) {
+    tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPE,
+      callback: (resp) => {
+        if (resp && resp.access_token) {
+          cachedAccessToken = resp.access_token;
+          cachedTokenExpiry = Date.now() + (Number(resp.expires_in || 3600) - 60) * 1000;
+        }
+        onToken(resp);
+      },
+    });
+    tokenClient.__clientId = clientId;
+  }
+  return tokenClient;
+}
+
+function requestAccessToken(clientId, { silent } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!clientId) return reject(new Error("NO_CLIENT_ID"));
+    const client = ensureTokenClient(clientId, (resp) => {
+      if (resp && resp.access_token) resolve(resp.access_token);
+      else reject(new Error(resp?.error || "AUTH_FAILED"));
+    });
+    if (!client) return reject(new Error("GIS_NOT_LOADED"));
+    if (cachedAccessToken && Date.now() < cachedTokenExpiry) return resolve(cachedAccessToken);
+    client.requestAccessToken({ prompt: silent ? "none" : "" });
+  });
+}
+
+async function driveFindFile(token) {
+  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`DRIVE_SEARCH_${res.status}`);
+  const data = await res.json();
+  return data.files && data.files[0] ? data.files[0].id : null;
+}
+
+async function driveCreateFile(token, payload) {
+  const boundary = "dd_thcs_boundary_" + Date.now();
+  const metadata = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
+  const body =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(payload)}\r\n` +
+    `--${boundary}--`;
+  const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  if (!res.ok) throw new Error(`DRIVE_CREATE_${res.status}`);
+  const data = await res.json();
+  return data.id;
+}
+
+async function driveUpdateFile(token, fileId, payload) {
+  const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`DRIVE_UPDATE_${res.status}`);
+}
+
+async function driveReadFile(token, fileId) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`DRIVE_READ_${res.status}`);
+  return res.json();
+}
+
+/* ---------------------------------------------------------------
+   Component nhỏ dùng chung
+--------------------------------------------------------------- */
+
+function SyncBadge({ status, lastSync }) {
+  const map = {
+    idle: { icon: Cloud, text: "Chưa đồng bộ", color: TOKENS.textSecondary },
+    syncing: { icon: RefreshCw, text: "Đang đồng bộ…", color: TOKENS.excused, spin: true },
+    synced: { icon: Cloud, text: lastSync ? `Đã đồng bộ lúc ${formatTime(lastSync)}` : "Đã đồng bộ", color: TOKENS.present },
+    error: { icon: CloudOff, text: "Lỗi đồng bộ Drive", color: TOKENS.absent },
+    offline: { icon: CloudOff, text: "Chưa kết nối Google Drive", color: TOKENS.textSecondary },
+  };
+  const m = map[status] || map.idle;
+  const Icon = m.icon;
+  return (
+    <div className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm"
+      style={{ background: TOKENS.surface, border: `1px solid ${TOKENS.border}`, color: m.color }}>
+      <Icon size={15} className={m.spin ? "animate-spin" : ""} />
+      <span>{m.text}</span>
+    </div>
+  );
+}
+
+function Card({ children, style, className = "" }) {
+  return (
+    <div className={`rounded-lg ${className}`} style={{ background: TOKENS.surface, border: `1px solid ${TOKENS.border}`, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+function PrimaryButton({ children, onClick, disabled, icon: Icon, style }) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+      style={{ background: TOKENS.navy, color: "#fff", ...style }}
+      onMouseEnter={(e) => !disabled && (e.currentTarget.style.background = TOKENS.navyDark)}
+      onMouseLeave={(e) => !disabled && (e.currentTarget.style.background = TOKENS.navy)}>
+      {Icon && <Icon size={16} />}
+      {children}
+    </button>
+  );
+}
+
+function GhostButton({ children, onClick, icon: Icon, danger, active }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium border transition-colors"
+      style={{
+        color: danger ? TOKENS.absent : active ? TOKENS.navy : TOKENS.textPrimary,
+        borderColor: danger ? "#F0C6C3" : active ? TOKENS.navy : TOKENS.border,
+        background: active ? "#EAF0F7" : "#fff",
+      }}>
+      {Icon && <Icon size={14} />}
+      {children}
+    </button>
+  );
+}
+
+function EmptyState({ text }) {
+  return <div className="py-10 text-center text-sm" style={{ color: TOKENS.textSecondary }}>{text}</div>;
+}
+
+function ClassPicker({ value, onChange }) {
+  return (
+    <div className="relative">
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="appearance-none rounded-md pl-3 pr-8 py-2 text-sm font-medium outline-none"
+        style={{ border: `1px solid ${TOKENS.border}`, background: "#fff" }}>
+        <optgroup label="Khối 7">{GRADE7.map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+        <optgroup label="Khối 8">{GRADE8.map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+      </select>
+      <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: TOKENS.textSecondary }} />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   App chính
+--------------------------------------------------------------- */
+
+function AttendanceApp() {
+  const [tab, setTab] = useState("dashboard");
+  const [students, setStudents] = useState({});
+  const [attendance, setAttendance] = useState({});
+  const [grades, setGrades] = useState({});
+  const [groups, setGroups] = useState({});
+  const [groupCounts, setGroupCounts] = useState({});
+  const [comments, setComments] = useState({});
+  const [loaded, setLoaded] = useState(false);
+
+  const [googleClientId, setGoogleClientId] = useState(lsGet(LS_KEYS.clientId) || "");
+  const [anthropicKey, setAnthropicKey] = useState(lsGet(LS_KEYS.apiKey) || "");
+  const [driveConnected, setDriveConnected] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("offline");
+  const [lastSync, setLastSync] = useState(null);
+  const [autoSync, setAutoSync] = useState(true);
+
+  const isFirstRun = useRef(true);
+  const syncTimer = useRef(null);
+  const pollTimer = useRef(null);
+  const fileIdRef = useRef(lsGet(LS_KEYS.fileId) || null);
+
+  /* ---- tải dữ liệu local khi khởi động ---- */
+  useEffect(() => {
+    const raw = lsGet(LS_KEYS.data);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.students) setStudents(parsed.students);
+        if (parsed.attendance) setAttendance(parsed.attendance);
+        if (parsed.grades) setGrades(parsed.grades);
+        if (parsed.groups) setGroups(parsed.groups);
+        if (parsed.groupCounts) setGroupCounts(parsed.groupCounts);
+        if (parsed.comments) setComments(parsed.comments);
+      } catch {}
+    }
+    setLoaded(true);
+    // nếu đã có Client ID lưu sẵn, thử đăng nhập âm thầm (không hiện popup) khi trang mở lại
+    if (googleClientId) {
+      requestAccessToken(googleClientId, { silent: true })
+        .then(() => { setDriveConnected(true); setSyncStatus("idle"); })
+        .catch(() => setSyncStatus("offline"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ---- lưu local mỗi khi dữ liệu đổi ---- */
+  useEffect(() => {
+    if (!loaded) return;
+    lsSet(LS_KEYS.data, JSON.stringify({ students, attendance, grades, groups, groupCounts, comments }));
+  }, [students, attendance, grades, groups, groupCounts, comments, loaded]);
+
+  /* ---- tự động đồng bộ Drive (debounce) ---- */
+  useEffect(() => {
+    if (!loaded) return;
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
+    if (!autoSync || !driveConnected) return;
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => { pushToDrive(); }, 2500);
+    return () => clearTimeout(syncTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students, attendance, grades, groups, groupCounts, comments, loaded, autoSync, driveConnected]);
+
+  /* ---- kiểm tra Drive định kỳ (mô phỏng gần-thời-gian-thực bằng polling) ---- */
+  useEffect(() => {
+    clearInterval(pollTimer.current);
+    if (!driveConnected || !autoSync) return;
+    pollTimer.current = setInterval(() => { pullFromDrive({ silent: true }); }, 45000);
+    return () => clearInterval(pollTimer.current);
+  }, [driveConnected, autoSync]);
+
+  function saveGoogleClientId(id) {
+    setGoogleClientId(id);
+    lsSet(LS_KEYS.clientId, id);
+  }
+  function saveAnthropicKey(k) {
+    setAnthropicKey(k);
+    lsSet(LS_KEYS.apiKey, k);
+  }
+
+  async function connectDrive() {
+    if (!googleClientId) return { ok: false, msg: "Chưa nhập Google Client ID." };
+    setSyncStatus("syncing");
+    try {
+      await requestAccessToken(googleClientId, { silent: false });
+      setDriveConnected(true);
+      setSyncStatus("idle");
+      return { ok: true };
+    } catch (e) {
+      setSyncStatus("offline");
+      return { ok: false, msg: "Không đăng nhập được Google. Kiểm tra lại Client ID." };
+    }
+  }
+
+  async function pushToDrive() {
+    if (!driveConnected || !googleClientId) return { ok: false };
+    setSyncStatus("syncing");
+    try {
+      const token = await requestAccessToken(googleClientId, { silent: true });
+      const payload = { classes: ALL_CLASSES, students, attendance, grades, groups, groupCounts, comments, updatedAt: new Date().toISOString() };
+      let fileId = fileIdRef.current;
+      if (!fileId) fileId = await driveFindFile(token);
+      if (!fileId) fileId = await driveCreateFile(token, payload);
+      else await driveUpdateFile(token, fileId, payload);
+      fileIdRef.current = fileId;
+      lsSet(LS_KEYS.fileId, fileId);
+      setSyncStatus("synced");
+      setLastSync(Date.now());
+      return { ok: true };
+    } catch (e) {
+      setSyncStatus("error");
+      return { ok: false, msg: "Đồng bộ thất bại: " + e.message };
+    }
+  }
+
+  async function pullFromDrive({ silent } = {}) {
+    if (!driveConnected || !googleClientId) return { ok: false };
+    if (!silent) setSyncStatus("syncing");
+    try {
+      const token = await requestAccessToken(googleClientId, { silent: true });
+      let fileId = fileIdRef.current || (await driveFindFile(token));
+      if (!fileId) {
+        if (!silent) setSyncStatus("error");
+        return { ok: false, msg: "Chưa có dữ liệu trên Drive." };
+      }
+      fileIdRef.current = fileId;
+      lsSet(LS_KEYS.fileId, fileId);
+      const parsed = await driveReadFile(token, fileId);
+      if (parsed.students) setStudents(parsed.students);
+      if (parsed.attendance) setAttendance(parsed.attendance);
+      if (parsed.grades) setGrades(parsed.grades);
+      if (parsed.groups) setGroups(parsed.groups);
+      if (parsed.groupCounts) setGroupCounts(parsed.groupCounts);
+      if (parsed.comments) setComments(parsed.comments);
+      setSyncStatus("synced");
+      setLastSync(Date.now());
+      return { ok: true };
+    } catch (e) {
+      if (!silent) setSyncStatus("error");
+      return { ok: false, msg: "Không tải được từ Drive." };
+    }
+  }
+
+  /* ---- học sinh ---- */
+  function addStudents(cls, names) {
+    setStudents((prev) => {
+      const list = prev[cls] ? [...prev[cls]] : [];
+      names.map((n) => n.trim()).filter(Boolean).forEach((name) => list.push({ id: uid(), name }));
+      return { ...prev, [cls]: list };
+    });
+  }
+  function renameStudent(cls, id, name) {
+    setStudents((prev) => ({ ...prev, [cls]: (prev[cls] || []).map((s) => (s.id === id ? { ...s, name } : s)) }));
+  }
+  function removeStudent(cls, id) {
+    setStudents((prev) => ({ ...prev, [cls]: (prev[cls] || []).filter((s) => s.id !== id) }));
+  }
+
+  /* ---- điểm danh ---- */
+  function setStatus(dateKey, cls, studentId, status) {
+    const key = `${dateKey}_${cls}`;
+    setAttendance((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [studentId]: status } }));
+  }
+  function markAllPresent(dateKey, cls) {
+    const key = `${dateKey}_${cls}`;
+    const list = students[cls] || [];
+    const rec = {};
+    list.forEach((s) => (rec[s.id] = "present"));
+    setAttendance((prev) => ({ ...prev, [key]: rec }));
+  }
+
+  /* ---- điểm số ---- */
+  function addAssessment(cls, subject, label, date) {
+    const id = uid();
+    setGrades((prev) => {
+      const clsData = prev[cls] || { assessments: [], scores: {} };
+      return { ...prev, [cls]: { assessments: [...clsData.assessments, { id, subject, label, date }], scores: { ...clsData.scores, [id]: {} } } };
+    });
+  }
+  function removeAssessment(cls, assessmentId) {
+    setGrades((prev) => {
+      const clsData = prev[cls] || { assessments: [], scores: {} };
+      const { [assessmentId]: _, ...restScores } = clsData.scores;
+      return { ...prev, [cls]: { assessments: clsData.assessments.filter((a) => a.id !== assessmentId), scores: restScores } };
+    });
+  }
+  function setScore(cls, assessmentId, studentId, value) {
+    let clean = value;
+    if (clean !== "") {
+      const n = Number(clean);
+      if (!isNaN(n)) clean = String(Math.max(0, Math.min(10, n)));
+    }
+    setGrades((prev) => {
+      const clsData = prev[cls] || { assessments: [], scores: {} };
+      return { ...prev, [cls]: { ...clsData, scores: { ...clsData.scores, [assessmentId]: { ...(clsData.scores[assessmentId] || {}), [studentId]: clean } } } };
+    });
+  }
+
+  /* ---- tổ / thi đua ---- */
+  function setGroupCount(cls, n) {
+    setGroupCounts((prev) => ({ ...prev, [cls]: n }));
+    setGroups((prev) => {
+      const clsGroups = prev[cls];
+      if (!clsGroups) return prev;
+      let changed = false;
+      const next = {};
+      Object.entries(clsGroups).forEach(([studentId, g]) => {
+        next[studentId] = g > n ? n : g;
+        if (g > n) changed = true;
+      });
+      return changed ? { ...prev, [cls]: next } : prev;
+    });
+  }
+  function setStudentGroup(cls, studentId, groupNumber) {
+    setGroups((prev) => ({ ...prev, [cls]: { ...(prev[cls] || {}), [studentId]: groupNumber } }));
+  }
+  function autoDistribute(cls, n) {
+    const list = students[cls] || [];
+    const assignment = {};
+    list.forEach((s, idx) => { assignment[s.id] = (idx % n) + 1; });
+    setGroups((prev) => ({ ...prev, [cls]: assignment }));
+  }
+
+  /* ---- AI nhận xét ---- */
+  function setCommentText(cls, studentId, text) {
+    setComments((prev) => ({ ...prev, [cls]: { ...(prev[cls] || {}), [studentId]: { text, updatedAt: prev[cls]?.[studentId]?.updatedAt || Date.now() } } }));
+  }
+
+  async function generateClassComments(cls) {
+    if (!anthropicKey) return { ok: false, msg: 'Chưa nhập Anthropic API Key ở mục Cài đặt.' };
+    const list = students[cls] || [];
+    if (list.length === 0) return { ok: false, msg: "Lớp chưa có học sinh." };
+    const lines = list.map((s) => {
+      const sum = summarizeStudent(cls, s.id, attendance, grades);
+      const subjParts = Object.entries(sum.subjectAverages).map(([k, v]) => `${k}: ${v}`).join(", ") || "chưa có điểm";
+      return `- ID ${s.id} | Tên: ${s.name} | ĐTB chung: ${sum.overallAvg ?? "chưa có điểm"} | Điểm theo môn: ${subjParts} | Chuyên cần: ${sum.present}/${sum.totalDays} buổi có mặt, vắng có phép ${sum.excused}, vắng không phép ${sum.absent}, đi muộn ${sum.late}`;
+    }).join("\n");
+    const prompt = `Bạn là giáo viên chủ nhiệm lớp ${cls} (THCS), viết nhận xét học tập & rèn luyện cho từng học sinh theo tinh thần Thông tư 22/2021: ngắn gọn 2-3 câu, khách quan, mang tính động viên, nêu điểm mạnh và một điều cần cố gắng, không so sánh giữa các học sinh, không dùng từ ngữ nặng nề.
+
+Dữ liệu từng học sinh:
+${lines}
+
+Chỉ trả lời bằng đúng JSON theo định dạng sau, không thêm lời dẫn, không dùng dấu backtick markdown:
+{"comments": {"<ID học sinh>": "<nội dung nhận xét>"}}`;
+    try {
+      const data = await callClaudeDirect(prompt, anthropicKey);
+      const text = extractText(data).replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(text);
+      const map = parsed.comments || {};
+      setComments((prev) => {
+        const clsComments = { ...(prev[cls] || {}) };
+        Object.entries(map).forEach(([id, txt]) => { clsComments[id] = { text: String(txt).trim(), updatedAt: Date.now() }; });
+        return { ...prev, [cls]: clsComments };
+      });
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, msg: "Không tạo được nhận xét: " + e.message };
+    }
+  }
+
+  async function generateOneComment(cls, studentId) {
+    if (!anthropicKey) return { ok: false, msg: 'Chưa nhập Anthropic API Key ở mục Cài đặt.' };
+    const list = students[cls] || [];
+    const s = list.find((x) => x.id === studentId);
+    if (!s) return { ok: false };
+    const sum = summarizeStudent(cls, studentId, attendance, grades);
+    const subjParts = Object.entries(sum.subjectAverages).map(([k, v]) => `${k}: ${v}`).join(", ") || "chưa có điểm";
+    const prompt = `Bạn là giáo viên chủ nhiệm THCS. Viết nhận xét học tập & rèn luyện cho học sinh sau, theo tinh thần Thông tư 22/2021: ngắn gọn 2-3 câu, khách quan, mang tính động viên, nêu điểm mạnh và một điều cần cố gắng, không dùng từ ngữ nặng nề.
+
+Học sinh: ${s.name} (lớp ${cls})
+ĐTB chung: ${sum.overallAvg ?? "chưa có điểm"}
+Điểm theo môn: ${subjParts}
+Chuyên cần: ${sum.present}/${sum.totalDays} buổi có mặt, vắng có phép ${sum.excused}, vắng không phép ${sum.absent}, đi muộn ${sum.late}
+
+Chỉ trả lời đúng nội dung nhận xét, không thêm lời dẫn, không dùng dấu ngoặc kép bao quanh toàn bộ câu trả lời.`;
+    try {
+      const data = await callClaudeDirect(prompt, anthropicKey);
+      const text = extractText(data).trim();
+      setComments((prev) => ({ ...prev, [cls]: { ...(prev[cls] || {}), [studentId]: { text, updatedAt: Date.now() } } }));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, msg: e.message };
+    }
+  }
+
+  const totalStudents = useMemo(() => Object.values(students).reduce((a, l) => a + l.length, 0), [students]);
+
+  const TABS = [
+    { id: "dashboard", label: "Tổng quan", icon: LayoutDashboard },
+    { id: "students", label: "Học sinh", icon: Users },
+    { id: "attendance", label: "Điểm danh", icon: CalendarCheck2 },
+    { id: "aicomments", label: "AI Nhận xét", icon: Sparkles },
+    { id: "grades", label: "Học tập", icon: BookOpen },
+    { id: "competition", label: "Thi đua", icon: Trophy },
+    { id: "settings", label: "Cài đặt", icon: Settings },
+  ];
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen w-full" style={{ background: TOKENS.bg, color: TOKENS.textPrimary, fontFamily: "'Be Vietnam Pro', system-ui, sans-serif" }}>
+      <Sidebar tab={tab} setTab={setTab} totalStudents={totalStudents} tabs={TABS} />
+      <main className="flex-1 min-w-0">
+        <TopBar title={TABS.find((t) => t.id === tab)?.label || ""} syncStatus={syncStatus} lastSync={lastSync} />
+        <div className="p-4 md:p-6">
+          {!loaded ? (
+            <div className="py-20 text-center" style={{ color: TOKENS.textSecondary }}>Đang tải dữ liệu…</div>
+          ) : tab === "dashboard" ? (
+            <Dashboard students={students} attendance={attendance} />
+          ) : tab === "students" ? (
+            <StudentsTab students={students} addStudents={addStudents} renameStudent={renameStudent} removeStudent={removeStudent} />
+          ) : tab === "attendance" ? (
+            <AttendanceTab students={students} attendance={attendance} setStatus={setStatus} markAllPresent={markAllPresent} onSaveNow={pushToDrive} />
+          ) : tab === "aicomments" ? (
+            <AiCommentsTab students={students} attendance={attendance} grades={grades} comments={comments}
+              generateClassComments={generateClassComments} generateOneComment={generateOneComment} setCommentText={setCommentText} />
+          ) : tab === "grades" ? (
+            <GradesTab students={students} grades={grades} addAssessment={addAssessment} removeAssessment={removeAssessment} setScore={setScore} />
+          ) : tab === "competition" ? (
+            <CompetitionTab students={students} grades={grades} attendance={attendance} groups={groups} groupCounts={groupCounts}
+              setGroupCount={setGroupCount} setStudentGroup={setStudentGroup} autoDistribute={autoDistribute} />
+          ) : (
+            <SettingsTab
+              googleClientId={googleClientId} saveGoogleClientId={saveGoogleClientId}
+              anthropicKey={anthropicKey} saveAnthropicKey={saveAnthropicKey}
+              driveConnected={driveConnected} onConnectDrive={connectDrive}
+              autoSync={autoSync} setAutoSync={setAutoSync}
+              syncStatus={syncStatus} lastSync={lastSync}
+              onSyncNow={pushToDrive} onPullNow={() => pullFromDrive({ silent: false })}
+            />
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Sidebar & TopBar
+--------------------------------------------------------------- */
+
+function Sidebar({ tab, setTab, totalStudents, tabs }) {
+  return (
+    <aside className="flex md:flex-col md:w-60 shrink-0" style={{ background: TOKENS.navy, color: "#fff" }}>
+      <div className="hidden md:block px-5 pt-6 pb-4">
+        <div className="text-lg font-bold tracking-tight">Sổ Điểm Danh</div>
+        <div className="text-xs mt-1" style={{ color: "#B9C7DA" }}>{SCHOOL_NAME}</div>
+        <div className="text-xs mt-0.5" style={{ color: "#8FA3BC" }}>Năm học {academicYear()}</div>
+      </div>
+      <nav className="flex md:flex-col flex-1 md:mt-2 overflow-x-auto md:overflow-visible">
+        {tabs.map((it) => {
+          const Icon = it.icon;
+          const active = tab === it.id;
+          return (
+            <button key={it.id} onClick={() => setTab(it.id)}
+              className="flex items-center gap-3 px-5 py-3 text-sm font-medium whitespace-nowrap relative"
+              style={{ background: active ? TOKENS.navySoft : "transparent", color: active ? "#fff" : "#C4D1E0", borderLeft: active ? `3px solid ${TOKENS.gold}` : "3px solid transparent" }}>
+              <Icon size={17} />{it.label}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="hidden md:block mt-auto px-5 py-4 text-xs" style={{ color: "#8FA3BC", borderTop: `1px solid ${TOKENS.navySoft}` }}>
+        <Users size={13} className="inline mr-1.5 -mt-0.5" />{totalStudents} học sinh · 15 lớp
+      </div>
+    </aside>
+  );
+}
+
+function TopBar({ title, syncStatus, lastSync }) {
+  return (
+    <div className="flex items-center justify-between px-4 md:px-6 py-4" style={{ borderBottom: `1px solid ${TOKENS.border}`, background: TOKENS.surface }}>
+      <h1 className="text-xl font-bold">{title}</h1>
+      <SyncBadge status={syncStatus} lastSync={lastSync} />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Tab Tổng quan
+--------------------------------------------------------------- */
+
+function Dashboard({ students, attendance }) {
+  const [date, setDate] = useState(todayStr());
+  const rows = useMemo(() => ALL_CLASSES.map((cls) => {
+    const list = students[cls] || [];
+    const rec = attendance[`${date}_${cls}`] || {};
+    let present = 0, excused = 0, absent = 0, late = 0;
+    list.forEach((s) => {
+      const st = rec[s.id] || "present";
+      if (st === "present") present++; else if (st === "excused") excused++; else if (st === "absent") absent++; else if (st === "late") late++;
+    });
+    const total = list.length;
+    const rate = total ? round1((present / total) * 100) : null;
+    return { cls, total, present, excused, absent, late, rate };
+  }), [students, attendance, date]);
+
+  const totals = rows.reduce((acc, r) => ({
+    total: acc.total + r.total, present: acc.present + r.present, excused: acc.excused + r.excused, absent: acc.absent + r.absent, late: acc.late + r.late,
+  }), { total: 0, present: 0, excused: 0, absent: 0, late: 0 });
+
+  const chartData = rows.filter((r) => r.total > 0).map((r) => ({ name: r.cls, rate: r.rate }));
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="text-sm font-medium" style={{ color: TOKENS.textSecondary }}>Xem theo ngày</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-md px-3 py-1.5 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <StatCard label="Sĩ số toàn khối" value={totals.total} color={TOKENS.navy} />
+        <StatCard label="Có mặt" value={totals.present} color={TOKENS.present} />
+        <StatCard label="Vắng có phép" value={totals.excused} color={TOKENS.excused} />
+        <StatCard label="Vắng không phép" value={totals.absent} color={TOKENS.absent} />
+        <StatCard label="Đi muộn" value={totals.late} color={TOKENS.late} />
+      </div>
+      <Card style={{ padding: "20px" }}>
+        <div className="text-sm font-semibold mb-4">Tỷ lệ có mặt theo lớp (%)</div>
+        {chartData.length === 0 ? <EmptyState text="Chưa có dữ liệu điểm danh cho ngày này." /> : (
+          <SimpleBarChart
+            data={chartData}
+            series={[{ key: "rate", color: TOKENS.present, label: "Tỷ lệ có mặt" }]}
+            colorForBar={(d) => (d.rate < 90 ? TOKENS.absent : TOKENS.present)}
+          />
+        )}
+      </Card>
+      <Card>
+        <div className="px-5 py-4 text-sm font-semibold" style={{ borderBottom: `1px solid ${TOKENS.border}` }}>Chi tiết theo lớp</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr style={{ color: TOKENS.textSecondary }}>
+              <th className="text-left font-medium px-5 py-2">Lớp</th>
+              <th className="text-right font-medium px-3 py-2">Sĩ số</th>
+              <th className="text-right font-medium px-3 py-2">Có mặt</th>
+              <th className="text-right font-medium px-3 py-2">Phép</th>
+              <th className="text-right font-medium px-3 py-2">Không phép</th>
+              <th className="text-right font-medium px-3 py-2">Muộn</th>
+              <th className="text-right font-medium px-5 py-2">Tỷ lệ</th>
+            </tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.cls} style={{ borderTop: `1px solid ${TOKENS.border}` }}>
+                  <td className="px-5 py-2 font-medium">{r.cls}</td>
+                  <td className="text-right px-3 py-2">{r.total}</td>
+                  <td className="text-right px-3 py-2" style={{ color: TOKENS.present }}>{r.present}</td>
+                  <td className="text-right px-3 py-2" style={{ color: TOKENS.excused }}>{r.excused}</td>
+                  <td className="text-right px-3 py-2" style={{ color: TOKENS.absent }}>{r.absent}</td>
+                  <td className="text-right px-3 py-2" style={{ color: TOKENS.late }}>{r.late}</td>
+                  <td className="text-right px-5 py-2 font-semibold">{r.total === 0 ? "—" : `${r.rate}%`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function StatCard({ label, value, color }) {
+  return (
+    <Card style={{ padding: "14px 16px" }}>
+      <div className="text-2xl font-bold" style={{ color }}>{value}</div>
+      <div className="text-xs mt-1" style={{ color: TOKENS.textSecondary }}>{label}</div>
+    </Card>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Tab Học sinh
+--------------------------------------------------------------- */
+
+function StudentsTab({ students, addStudents, renameStudent, removeStudent }) {
+  const [subTab, setSubTab] = useState("manual");
+  const [cls, setCls] = useState(ALL_CLASSES[0]);
+  const [name, setName] = useState("");
+  const [bulkText, setBulkText] = useState("");
+  const [bulkResult, setBulkResult] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editingName, setEditingName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const list = students[cls] || [];
+
+  function handleAddOne() {
+    if (!name.trim()) return;
+    addStudents(cls, [name]);
+    setName("");
+  }
+  function handleBulkFromTextarea() {
+    const lines = bulkText.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    addStudents(cls, lines);
+    setBulkResult(`Đã thêm ${lines.length} học sinh vào lớp ${cls}.`);
+    setBulkText("");
+  }
+  function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const byClass = {};
+      let fallbackCount = 0;
+      lines.forEach((line) => {
+        const parts = line.split(",");
+        if (parts.length >= 2) {
+          const maybeClass = parts[0].trim().toUpperCase();
+          const studentName = parts.slice(1).join(",").trim();
+          if (ALL_CLASSES.includes(maybeClass) && studentName) {
+            byClass[maybeClass] = byClass[maybeClass] || [];
+            byClass[maybeClass].push(studentName);
+            return;
+          }
+        }
+        byClass[cls] = byClass[cls] || [];
+        byClass[cls].push(line);
+        fallbackCount++;
+      });
+      Object.entries(byClass).forEach(([c, names]) => addStudents(c, names));
+      const total = Object.values(byClass).reduce((a, l) => a + l.length, 0);
+      setBulkResult(`Đã nhập ${total} học sinh từ tệp${fallbackCount ? ` (${fallbackCount} dòng không rõ lớp được gán vào ${cls})` : ""}.`);
+    };
+    reader.readAsText(file, "utf-8");
+    e.target.value = "";
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <div className="px-5 py-4 text-sm font-semibold" style={{ borderBottom: `1px solid ${TOKENS.border}` }}>Nguồn dữ liệu học sinh</div>
+        <div className="px-5 pt-4 flex gap-2">
+          {[{ id: "manual", label: "Nhập thủ công" }, { id: "bulk", label: "Nhập / tải lên hàng loạt" }].map((t) => (
+            <button key={t.id} onClick={() => setSubTab(t.id)} className="rounded-md px-3 py-1.5 text-sm font-medium"
+              style={{ background: subTab === t.id ? TOKENS.navy : "#fff", color: subTab === t.id ? "#fff" : TOKENS.textSecondary, border: `1px solid ${subTab === t.id ? TOKENS.navy : TOKENS.border}` }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="p-5">
+          <div className="mb-4">
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Chọn lớp</div>
+            <ClassPicker value={cls} onChange={setCls} />
+          </div>
+          {subTab === "manual" ? (
+            <div className="flex gap-2 mb-2">
+              <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddOne()}
+                placeholder="Họ và tên học sinh" className="flex-1 rounded-md px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+              <PrimaryButton icon={Plus} onClick={handleAddOne}>Thêm</PrimaryButton>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div>
+                <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Dán danh sách (mỗi dòng một học sinh) — sẽ thêm vào lớp {cls}</div>
+                <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5} placeholder={"Nguyễn Văn A\nTrần Thị B\nLê Văn C"}
+                  className="w-full rounded-md px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+                <div className="flex justify-end mt-2"><PrimaryButton icon={Plus} onClick={handleBulkFromTextarea}>Nhập danh sách</PrimaryButton></div>
+              </div>
+              <div className="pt-3" style={{ borderTop: `1px solid ${TOKENS.border}` }}>
+                <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Hoặc tải lên tệp .csv / .txt — mỗi dòng "Lớp,Họ tên" (ví dụ 7A1,Nguyễn Văn A), hoặc chỉ tên nếu áp dụng cho lớp đã chọn ở trên</div>
+                <label className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium border cursor-pointer" style={{ borderColor: TOKENS.border }}>
+                  <UploadCloud size={15} />Chọn tệp
+                  <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+                </label>
+              </div>
+              {bulkResult && <div className="text-sm rounded-md px-3 py-2" style={{ background: TOKENS.presentBg, color: TOKENS.present }}>{bulkResult}</div>}
+            </div>
+          )}
+        </div>
+        <div className="px-5 pb-5">
+          <div className="text-xs font-medium mb-2" style={{ color: TOKENS.textSecondary }}>Danh sách lớp {cls} ({list.length} học sinh)</div>
+          {list.length === 0 ? <EmptyState text="Chưa có học sinh nào trong lớp này." /> : (
+            <div className="rounded-md" style={{ border: `1px solid ${TOKENS.border}` }}>
+              {list.map((s, idx) => (
+                <div key={s.id} className="flex items-center gap-3 px-3 py-2 text-sm" style={{ borderTop: idx === 0 ? "none" : `1px solid ${TOKENS.border}` }}>
+                  <div className="w-6 text-right" style={{ color: TOKENS.textSecondary }}>{idx + 1}</div>
+                  {editingId === s.id ? (
+                    <input autoFocus value={editingName} onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { renameStudent(cls, s.id, editingName.trim() || s.name); setEditingId(null); } if (e.key === "Escape") setEditingId(null); }}
+                      className="flex-1 rounded px-2 py-1 outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+                  ) : <div className="flex-1">{s.name}</div>}
+                  {editingId === s.id ? (
+                    <GhostButton icon={Check} onClick={() => { renameStudent(cls, s.id, editingName.trim() || s.name); setEditingId(null); }}>Xong</GhostButton>
+                  ) : (
+                    <GhostButton icon={Pencil} onClick={() => { setEditingId(s.id); setEditingName(s.name); }}>Sửa</GhostButton>
+                  )}
+                  {confirmDeleteId === s.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs" style={{ color: TOKENS.absent }}>Xoá?</span>
+                      <GhostButton danger icon={Check} onClick={() => { removeStudent(cls, s.id); setConfirmDeleteId(null); }}>Có</GhostButton>
+                      <GhostButton icon={X} onClick={() => setConfirmDeleteId(null)}>Không</GhostButton>
+                    </div>
+                  ) : <GhostButton danger icon={Trash2} onClick={() => setConfirmDeleteId(s.id)}>Xoá</GhostButton>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Tab Điểm danh
+--------------------------------------------------------------- */
+
+function AttendanceTab({ students, attendance, setStatus, markAllPresent, onSaveNow }) {
+  const [cls, setCls] = useState(ALL_CLASSES[0]);
+  const [date, setDate] = useState(todayStr());
+  const [saved, setSaved] = useState(false);
+  const list = students[cls] || [];
+  const rec = attendance[`${date}_${cls}`] || {};
+  const counts = { present: 0, excused: 0, absent: 0, late: 0 };
+  list.forEach((s) => { counts[rec[s.id] || "present"]++; });
+
+  async function handleSave() {
+    await onSaveNow();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Card style={{ padding: "16px" }}>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Lớp</div>
+            <ClassPicker value={cls} onChange={setCls} />
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Ngày</div>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-md px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+          </div>
+          <div className="flex-1" />
+          <GhostButton icon={Check} onClick={() => markAllPresent(date, cls)}>Đánh dấu tất cả có mặt</GhostButton>
+          <PrimaryButton icon={saved ? Check : CalendarCheck2} onClick={handleSave}>{saved ? "Đã lưu" : "Lưu điểm danh"}</PrimaryButton>
+        </div>
+      </Card>
+      <div className="flex flex-wrap gap-3">
+        <CountChip label="Có mặt" value={counts.present} meta={STATUS_META.present} />
+        <CountChip label="Vắng có phép" value={counts.excused} meta={STATUS_META.excused} />
+        <CountChip label="Vắng không phép" value={counts.absent} meta={STATUS_META.absent} />
+        <CountChip label="Đi muộn" value={counts.late} meta={STATUS_META.late} />
+      </div>
+      <Card>
+        {list.length === 0 ? <EmptyState text={`Lớp ${cls} chưa có danh sách học sinh. Vào mục "Học sinh" để thêm.`} /> : (
+          <div>
+            {list.map((s, idx) => {
+              const current = rec[s.id] || "present";
+              return (
+                <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3" style={{ borderTop: idx === 0 ? "none" : `1px solid ${TOKENS.border}` }}>
+                  <div className="w-7 text-sm text-right" style={{ color: TOKENS.textSecondary }}>{idx + 1}</div>
+                  <div className="flex-1 min-w-[140px] text-sm font-medium">{s.name}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(STATUS_META).map(([key, meta]) => {
+                      const active = current === key;
+                      return (
+                        <button key={key} onClick={() => setStatus(date, cls, s.id, key)} className="rounded-full px-3 py-1 text-xs font-medium border transition-colors"
+                          style={{ background: active ? meta.bg : "#fff", color: active ? meta.color : TOKENS.textSecondary, borderColor: active ? meta.color : TOKENS.border }}>
+                          {meta.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function CountChip({ label, value, meta }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium" style={{ background: meta.bg, color: meta.color }}>
+      <span className="font-bold">{value}</span>{label}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Tab Học tập
+--------------------------------------------------------------- */
+
+function GradesTab({ students, grades, addAssessment, removeAssessment, setScore }) {
+  const [cls, setCls] = useState(ALL_CLASSES[0]);
+  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [newSubject, setNewSubject] = useState(SUBJECTS[0]);
+  const [newLabel, setNewLabel] = useState("");
+  const [newDate, setNewDate] = useState(todayStr());
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const list = students[cls] || [];
+  const clsGrades = grades[cls] || { assessments: [], scores: {} };
+  const shownAssessments = clsGrades.assessments.filter((a) => subjectFilter === "all" || a.subject === subjectFilter);
+
+  function handleAdd() {
+    if (!newLabel.trim()) return;
+    addAssessment(cls, newSubject, newLabel.trim(), newDate);
+    setNewLabel("");
+  }
+  function average(studentId) {
+    const valid = shownAssessments.map((a) => clsGrades.scores[a.id]?.[studentId])
+      .filter((v) => v !== undefined && v !== "" && !isNaN(Number(v))).map(Number);
+    if (valid.length === 0) return null;
+    return round1(valid.reduce((a, b) => a + b, 0) / valid.length);
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card style={{ padding: "16px" }}>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Lớp</div>
+            <ClassPicker value={cls} onChange={setCls} />
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Lọc theo môn</div>
+            <div className="relative">
+              <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}
+                className="appearance-none rounded-md pl-3 pr-8 py-2 text-sm font-medium outline-none" style={{ border: `1px solid ${TOKENS.border}`, background: "#fff" }}>
+                <option value="all">Tất cả môn</option>
+                {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: TOKENS.textSecondary }} />
+            </div>
+          </div>
+        </div>
+      </Card>
+      <Card style={{ padding: "16px" }}>
+        <div className="text-sm font-semibold mb-3">Thêm bài kiểm tra mới</div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Môn học</div>
+            <div className="relative">
+              <select value={newSubject} onChange={(e) => setNewSubject(e.target.value)} className="appearance-none rounded-md pl-3 pr-8 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }}>
+                {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: TOKENS.textSecondary }} />
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Tên bài kiểm tra</div>
+            <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="VD: 15 phút, Giữa kỳ..." className="rounded-md px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Ngày</div>
+            <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="rounded-md px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+          </div>
+          <PrimaryButton icon={Plus} onClick={handleAdd}>Thêm cột điểm</PrimaryButton>
+        </div>
+      </Card>
+      <Card>
+        {list.length === 0 ? (
+          <EmptyState text={`Lớp ${cls} chưa có danh sách học sinh. Vào mục "Học sinh" để thêm.`} />
+        ) : shownAssessments.length === 0 ? (
+          <EmptyState text="Chưa có bài kiểm tra nào phù hợp bộ lọc. Thêm bài kiểm tra ở trên." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="text-sm" style={{ minWidth: "100%" }}>
+              <thead><tr style={{ color: TOKENS.textSecondary, borderBottom: `1px solid ${TOKENS.border}` }}>
+                <th className="text-left font-medium px-4 py-2 sticky left-0" style={{ background: TOKENS.surface }}>Học sinh</th>
+                {shownAssessments.map((a) => (
+                  <th key={a.id} className="text-center font-medium px-3 py-2 whitespace-nowrap">
+                    <div>{a.label}</div>
+                    <div className="text-[11px] font-normal">{a.subject} · {a.date}</div>
+                    {confirmDeleteId === a.id ? (
+                      <div className="flex items-center justify-center gap-1 mt-1">
+                        <button className="text-[11px]" style={{ color: TOKENS.absent }} onClick={() => { removeAssessment(cls, a.id); setConfirmDeleteId(null); }}>Xoá?</button>
+                        <button className="text-[11px]" style={{ color: TOKENS.textSecondary }} onClick={() => setConfirmDeleteId(null)}>Huỷ</button>
+                      </div>
+                    ) : <button className="text-[11px] mt-1" style={{ color: TOKENS.absent }} onClick={() => setConfirmDeleteId(a.id)}>Xoá cột</button>}
+                  </th>
+                ))}
+                <th className="text-center font-medium px-4 py-2">ĐTB</th>
+              </tr></thead>
+              <tbody>
+                {list.map((s, idx) => (
+                  <tr key={s.id} style={{ borderTop: `1px solid ${TOKENS.border}` }}>
+                    <td className="px-4 py-2 sticky left-0" style={{ background: TOKENS.surface }}>
+                      <span className="mr-2" style={{ color: TOKENS.textSecondary }}>{idx + 1}.</span>{s.name}
+                    </td>
+                    {shownAssessments.map((a) => (
+                      <td key={a.id} className="text-center px-2 py-1.5">
+                        <input type="number" min="0" max="10" step="0.1" value={clsGrades.scores[a.id]?.[s.id] ?? ""}
+                          onChange={(e) => setScore(cls, a.id, s.id, e.target.value)} className="w-16 text-center rounded px-1 py-1 outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+                      </td>
+                    ))}
+                    <td className="text-center px-4 py-2 font-semibold">{average(s.id) ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Tab Thi đua
+--------------------------------------------------------------- */
+
+function CompetitionTab({ students, grades, attendance, groups, groupCounts, setGroupCount, setStudentGroup, autoDistribute }) {
+  const [cls, setCls] = useState(ALL_CLASSES[0]);
+  const [selectedSubjects, setSelectedSubjects] = useState(SUBJECTS.slice(0, 3));
+  const list = students[cls] || [];
+  const n = groupCounts[cls] || 4;
+  const clsGroups = groups[cls] || {};
+  const clsGrades = grades[cls] || { assessments: [], scores: {} };
+  const today = todayStr();
+  const rec = attendance[`${today}_${cls}`] || {};
+
+  function toggleSubject(subj) {
+    setSelectedSubjects((prev) => prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]);
+  }
+  const subjectsForCalc = selectedSubjects.length ? selectedSubjects : SUBJECTS;
+
+  const groupStats = useMemo(() => {
+    const stats = Array.from({ length: n }, (_, i) => ({ group: i + 1, total: 0, present: 0, sumScore: 0, countScore: 0, tens: 0, bySubject: {} }));
+    subjectsForCalc.forEach((subj) => stats.forEach((g) => (g.bySubject[subj] = { sum: 0, count: 0 })));
+    list.forEach((s) => {
+      const g = clsGroups[s.id] || 1;
+      const stat = stats[g - 1];
+      if (!stat) return;
+      stat.total++;
+      const st = rec[s.id] || "present";
+      if (st === "present") stat.present++;
+      clsGrades.assessments.forEach((a) => {
+        if (!subjectsForCalc.includes(a.subject)) return;
+        const raw = clsGrades.scores[a.id]?.[s.id];
+        const val = Number(raw);
+        if (raw === undefined || raw === "" || isNaN(val)) return;
+        stat.sumScore += val; stat.countScore++;
+        if (val === 10) stat.tens++;
+        stat.bySubject[a.subject].sum += val;
+        stat.bySubject[a.subject].count++;
+      });
+    });
+    return stats.map((g) => ({
+      ...g,
+      avg: g.countScore ? round1(g.sumScore / g.countScore) : null,
+      attendanceRate: g.total ? round1((g.present / g.total) * 100) : null,
+      subjectAverages: Object.fromEntries(Object.entries(g.bySubject).map(([subj, v]) => [subj, v.count ? round1(v.sum / v.count) : 0])),
+    }));
+  }, [list, clsGroups, clsGrades, rec, n, subjectsForCalc]);
+
+  const chartData = groupStats.map((g) => ({ name: `Tổ ${g.group}`, ...g.subjectAverages }));
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card style={{ padding: "16px" }}>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Lớp</div>
+            <ClassPicker value={cls} onChange={setCls} />
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Số tổ</div>
+            <input type="number" min={2} max={8} value={n} onChange={(e) => setGroupCount(cls, Math.max(2, Math.min(8, Number(e.target.value) || 2)))}
+              className="w-20 rounded-md px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+          </div>
+          <GhostButton icon={Shuffle} onClick={() => autoDistribute(cls, n)}>Chia tổ tự động</GhostButton>
+        </div>
+        <div className="mt-4">
+          <div className="text-xs font-medium mb-2" style={{ color: TOKENS.textSecondary }}>So sánh theo môn (chọn 1 hoặc nhiều môn)</div>
+          <div className="flex flex-wrap gap-2">
+            {SUBJECTS.map((subj) => (
+              <button key={subj} onClick={() => toggleSubject(subj)} className="rounded-full px-3 py-1 text-xs font-medium border"
+                style={{ background: selectedSubjects.includes(subj) ? "#EAF0F7" : "#fff", color: selectedSubjects.includes(subj) ? TOKENS.navy : TOKENS.textSecondary, borderColor: selectedSubjects.includes(subj) ? TOKENS.navy : TOKENS.border }}>
+                {subj}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Card>
+      {list.length === 0 ? (
+        <Card><EmptyState text={`Lớp ${cls} chưa có danh sách học sinh. Vào mục "Học sinh" để thêm.`} /></Card>
+      ) : (
+        <>
+          <Card style={{ padding: "20px" }}>
+            <div className="text-sm font-semibold mb-4">So sánh điểm trung bình giữa các tổ</div>
+            <SimpleBarChart
+              data={chartData}
+              series={subjectsForCalc.map((subj, i) => ({ key: subj, color: SUBJECT_COLORS[i % SUBJECT_COLORS.length], label: subj }))}
+              height={280}
+            />
+          </Card>
+          <Card>
+            <div className="px-5 py-4 text-sm font-semibold" style={{ borderBottom: `1px solid ${TOKENS.border}` }}>Tổng kết theo tổ</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-5">
+              {groupStats.map((g) => (
+                <Card key={g.group} style={{ padding: "14px" }}>
+                  <div className="text-sm font-bold mb-2">Tổ {g.group}</div>
+                  <div className="text-xs flex flex-col gap-1" style={{ color: TOKENS.textSecondary }}>
+                    <div>Sĩ số: <b style={{ color: TOKENS.textPrimary }}>{g.total}</b></div>
+                    <div>ĐTB: <b style={{ color: TOKENS.textPrimary }}>{g.avg ?? "—"}</b></div>
+                    <div>Chuyên cần: <b style={{ color: TOKENS.textPrimary }}>{g.attendanceRate ?? "—"}{g.attendanceRate !== null ? "%" : ""}</b></div>
+                    <div>Điểm 10: <b style={{ color: TOKENS.gold }}>★ {g.tens}</b></div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <div className="px-5 py-4 text-sm font-semibold" style={{ borderBottom: `1px solid ${TOKENS.border}` }}>Gán học sinh vào tổ</div>
+            <div>
+              {list.map((s, idx) => (
+                <div key={s.id} className="flex items-center gap-3 px-5 py-2 text-sm" style={{ borderTop: idx === 0 ? "none" : `1px solid ${TOKENS.border}` }}>
+                  <div className="w-6 text-right" style={{ color: TOKENS.textSecondary }}>{idx + 1}</div>
+                  <div className="flex-1">{s.name}</div>
+                  <div className="relative">
+                    <select value={clsGroups[s.id] || 1} onChange={(e) => setStudentGroup(cls, s.id, Number(e.target.value))}
+                      className="appearance-none rounded-md pl-3 pr-7 py-1.5 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }}>
+                      {Array.from({ length: n }, (_, i) => i + 1).map((g) => <option key={g} value={g}>Tổ {g}</option>)}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: TOKENS.textSecondary }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Tab AI Nhận xét
+--------------------------------------------------------------- */
+
+function AiCommentsTab({ students, attendance, grades, comments, generateClassComments, generateOneComment, setCommentText }) {
+  const [cls, setCls] = useState(ALL_CLASSES[0]);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchMsg, setBatchMsg] = useState("");
+  const [rowLoading, setRowLoading] = useState({});
+  const list = students[cls] || [];
+  const clsComments = comments[cls] || {};
+
+  async function handleBatch() {
+    setBatchLoading(true); setBatchMsg("");
+    const res = await generateClassComments(cls);
+    setBatchLoading(false);
+    setBatchMsg(res.ok ? `Đã tạo nhận xét cho ${list.length} học sinh.` : res.msg || "Có lỗi xảy ra, vui lòng thử lại.");
+    setTimeout(() => setBatchMsg(""), 5000);
+  }
+  async function handleOne(studentId) {
+    setRowLoading((p) => ({ ...p, [studentId]: true }));
+    await generateOneComment(cls, studentId);
+    setRowLoading((p) => ({ ...p, [studentId]: false }));
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card style={{ padding: "16px" }}>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Lớp</div>
+            <ClassPicker value={cls} onChange={setCls} />
+          </div>
+          <div className="flex-1" />
+          <PrimaryButton icon={batchLoading ? RefreshCw : Sparkles} disabled={batchLoading || list.length === 0} onClick={handleBatch}>
+            {batchLoading ? "Đang tạo nhận xét…" : "Tạo nhận xét cho cả lớp bằng AI"}
+          </PrimaryButton>
+        </div>
+        {batchMsg && <div className="text-sm rounded-md px-3 py-2 mt-3" style={{ background: TOKENS.presentBg, color: TOKENS.present }}>{batchMsg}</div>}
+        <div className="flex items-start gap-2 text-xs rounded-md px-3 py-2 mt-3" style={{ background: TOKENS.excusedBg, color: TOKENS.excused }}>
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>Cần nhập Anthropic API Key ở mục Cài đặt để dùng tính năng này. Nhận xét do AI tạo — giáo viên nên đọc và chỉnh sửa lại trước khi dùng chính thức.</span>
+        </div>
+      </Card>
+      <Card>
+        {list.length === 0 ? <EmptyState text={`Lớp ${cls} chưa có danh sách học sinh. Vào mục "Học sinh" để thêm.`} /> : (
+          <div>
+            {list.map((s, idx) => {
+              const c = clsComments[s.id];
+              const sum = summarizeStudent(cls, s.id, attendance, grades);
+              return (
+                <div key={s.id} className="px-5 py-4" style={{ borderTop: idx === 0 ? "none" : `1px solid ${TOKENS.border}` }}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div className="text-sm font-semibold">{idx + 1}. {s.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: TOKENS.textSecondary }}>ĐTB: {sum.overallAvg ?? "—"} · Chuyên cần: {sum.totalDays ? `${sum.present}/${sum.totalDays}` : "—"}</span>
+                      <GhostButton icon={rowLoading[s.id] ? RefreshCw : Sparkles} onClick={() => handleOne(s.id)}>{rowLoading[s.id] ? "Đang tạo…" : "Tạo lại bằng AI"}</GhostButton>
+                    </div>
+                  </div>
+                  <textarea value={c?.text || ""} onChange={(e) => setCommentText(cls, s.id, e.target.value)}
+                    placeholder="Chưa có nhận xét — bấm “Tạo lại bằng AI” hoặc tự nhập tại đây." rows={2}
+                    className="w-full rounded-md px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${TOKENS.border}` }} />
+                  {c?.updatedAt && <div className="text-[11px] mt-1" style={{ color: TOKENS.textSecondary }}>Cập nhật lúc {formatTime(c.updatedAt)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Tab Cài đặt
+--------------------------------------------------------------- */
+
+function SettingsTab({
+  googleClientId, saveGoogleClientId, anthropicKey, saveAnthropicKey,
+  driveConnected, onConnectDrive, autoSync, setAutoSync, syncStatus, lastSync, onSyncNow, onPullNow,
+}) {
+  const [clientIdDraft, setClientIdDraft] = useState(googleClientId);
+  const [keyDraft, setKeyDraft] = useState(anthropicKey);
+  const [connectMsg, setConnectMsg] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [pullConfirming, setPullConfirming] = useState(false);
+  const [pullMsg, setPullMsg] = useState("");
+
+  async function handleConnect() {
+    saveGoogleClientId(clientIdDraft.trim());
+    setConnecting(true);
+    const res = await onConnectDrive();
+    setConnecting(false);
+    setConnectMsg(res.ok ? "Đã kết nối Google Drive thành công." : res.msg || "Kết nối thất bại.");
+    setTimeout(() => setConnectMsg(""), 5000);
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <div className="px-5 py-4 text-sm font-semibold" style={{ borderBottom: `1px solid ${TOKENS.border}` }}>1. Kết nối Google Drive (bắt buộc để đồng bộ)</div>
+        <div className="p-5 flex flex-col gap-4">
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>Google OAuth Client ID</div>
+            <input value={clientIdDraft} onChange={(e) => setClientIdDraft(e.target.value)}
+              placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"
+              className="w-full rounded-md px-3 py-2 text-sm outline-none font-mono" style={{ border: `1px solid ${TOKENS.border}` }} />
+            <div className="text-xs mt-1" style={{ color: TOKENS.textSecondary }}>
+              Lấy tại Google Cloud Console — xem hướng dẫn trong README đi kèm. Chỉ lưu trên trình duyệt của bạn, không gửi đi đâu khác.
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <PrimaryButton icon={connecting ? RefreshCw : LogIn} disabled={connecting || !clientIdDraft.trim()} onClick={handleConnect}>
+              {connecting ? "Đang kết nối…" : driveConnected ? "Đăng nhập lại Google Drive" : "Kết nối Google Drive"}
+            </PrimaryButton>
+            <SyncBadge status={driveConnected ? syncStatus : "offline"} lastSync={lastSync} />
+          </div>
+          {connectMsg && <div className="text-sm rounded-md px-3 py-2" style={{ background: TOKENS.presentBg, color: TOKENS.present }}>{connectMsg}</div>}
+
+          {driveConnected && (
+            <div className="flex items-center gap-2 flex-wrap pt-2" style={{ borderTop: `1px solid ${TOKENS.border}` }}>
+              <GhostButton icon={UploadCloud} onClick={onSyncNow}>Đồng bộ ngay</GhostButton>
+              {pullConfirming ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs" style={{ color: TOKENS.absent }}>Ghi đè dữ liệu hiện tại?</span>
+                  <GhostButton danger icon={Check} onClick={async () => {
+                    setPullConfirming(false);
+                    const res = await onPullNow();
+                    setPullMsg(res.ok ? "Đã tải dữ liệu mới nhất từ Drive." : res.msg || "Không tải được từ Drive.");
+                    setTimeout(() => setPullMsg(""), 4000);
+                  }}>Có</GhostButton>
+                  <GhostButton icon={X} onClick={() => setPullConfirming(false)}>Không</GhostButton>
+                </div>
+              ) : <GhostButton icon={DownloadCloud} onClick={() => setPullConfirming(true)}>Tải từ Drive</GhostButton>}
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-2">
+                <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} />
+                Tự động đồng bộ khi có thay đổi
+              </label>
+            </div>
+          )}
+          {pullMsg && <div className="text-sm rounded-md px-3 py-2" style={{ background: TOKENS.excusedBg, color: TOKENS.excused }}>{pullMsg}</div>}
+
+          <div className="flex items-start gap-2 text-xs rounded-md px-3 py-2" style={{ background: TOKENS.lateBg, color: "#8a6417" }}>
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <span>
+              Dữ liệu luôn lưu ngay trên trình duyệt trước. Đồng bộ Drive là thật (Google Drive API), file tên <code>{DRIVE_FILE_NAME}</code>.
+              App tự kiểm tra Drive mỗi ~45 giây khi đã kết nối — đây là đồng bộ theo chu kỳ, không phải đẩy tức thời từng phím gõ.
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="px-5 py-4 text-sm font-semibold" style={{ borderBottom: `1px solid ${TOKENS.border}` }}>2. Anthropic API Key (chỉ cần cho mục "AI Nhận xét")</div>
+        <div className="p-5 flex flex-col gap-3">
+          <div>
+            <div className="text-xs font-medium mb-1" style={{ color: TOKENS.textSecondary }}>API Key</div>
+            <input type="password" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} placeholder="sk-ant-..."
+              className="w-full rounded-md px-3 py-2 text-sm outline-none font-mono" style={{ border: `1px solid ${TOKENS.border}` }} />
+          </div>
+          <div className="flex items-center gap-3">
+            <PrimaryButton icon={KeyRound} onClick={() => saveAnthropicKey(keyDraft.trim())}>Lưu API Key</PrimaryButton>
+            {anthropicKey && <span className="text-xs" style={{ color: TOKENS.present }}>Đã lưu key trong trình duyệt này.</span>}
+          </div>
+          <div className="flex items-start gap-2 text-xs rounded-md px-3 py-2" style={{ background: TOKENS.excusedBg, color: TOKENS.excused }}>
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <span>
+              Key chỉ lưu trong trình duyệt của bạn (localStorage) và chỉ dùng để gọi thẳng tới Anthropic — không qua máy chủ nào khác.
+              Không dùng chung máy tính công cộng khi đã lưu key, và không chia sẻ máy đã đăng nhập cho người lạ.
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      <Card style={{ padding: "16px" }}>
+        <div className="text-sm font-semibold mb-2">Thông tin lớp học</div>
+        <div className="text-sm" style={{ color: TOKENS.textSecondary }}>
+          {SCHOOL_NAME} · Cấp THCS · 15 lớp · Khối 7: 7A1–7A7 · Khối 8: 8A1–8A8 · Năm học {academicYear()}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Khởi chạy
+--------------------------------------------------------------- */
+
+ReactDOM.createRoot(document.getElementById("app")).render(<AttendanceApp />);
+</script>
+</body>
+</html>
